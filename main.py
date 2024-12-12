@@ -9,7 +9,6 @@ from openai import OpenAI
 import os
 
 # Initialisation de la clé API OpenAI
-OPENAI_API_KEY = "YOUR KEY HERE"
 client = OpenAI(api_key=OPENAI_API_KEY)
 
 # Configuration des options du navigateur Chrome
@@ -77,7 +76,7 @@ try:
             if rows:
                # Récupération des 10 derniers messages entrants
                 rows = driver.find_elements(By.XPATH, "//div[contains(@class, 'message-in')]")
-                recent_messages = rows[-25:] if len(rows) > 25 else rows
+                recent_messages = rows[-12:] if len(rows) > 13 else rows
 
                 chat_history = []
                 for row in recent_messages:
@@ -89,7 +88,7 @@ try:
                     timestamp = timestamp_author.split(']')[0].replace('[', '').strip()
                     author = timestamp_author.split(']')[-1].split(':')[0].strip()
 
-                    chat_history.append({"role": "user", "content": f"{timestamp} - {author} : {message_text}"})
+                    chat_history.append({"role": "user", "content": f" a {timestamp},  {author} a dit  <<{message_text}>> "})
 
                 # Identifier la conversation actuelle
                 conversation_id = driver.current_url
@@ -100,15 +99,16 @@ try:
                     last_messages[conversation_id] = chat_history
 
                     print("Génération de la réponse avec OpenAI...")
-                    chat_history.insert(0, {"role": "system", "content": "Tu n’es pas une IA. Pas de style robotique ni de phrases rigides. C’est une discussion par SMS entre potes, donc reste naturel et fluide. Parle simplement, comme si tu répondais à un ami, avec un ton décontracté mais jamais négligé. Tes réponses doivent être courtes, claires, parfois drôles ou pleines de second degré, mais toujours adaptées à la situation. Tu peux être sérieux si le sujet l’exige, mais garde toujours une vibe détendue. Tu t’appelles Imrane, ton numéro c’est 0780391078, et tu te comportes comme un vrai pote nommé Imrane. Tes réponses doivent refléter une vraie personnalité : un mec sympa, qui écoute, qui a de l’humour mais sait être pertinent. Pas de markdown, pas d’émoticônes, juste des phrases qui coulent comme dans une vraie conversation. Adapte ton style en fonction de la personne en face, mais toujours avec naturel et spontanéité."})
-
+                    chat_history.insert(0, {"role": "system", "content": "Tu as un bon point si tu ecris pas l'horodatage et le nom, Tu n’es pas une IA. Pas de style robotique ni de phrases rigides. C’est une discussion par SMS entre potes, donc reste naturel et fluide. Parle simplement, comme si tu répondais à un ami, avec un ton décontracté mais jamais négligé. Tes réponses doivent être courtes, claires, parfois drôles ou pleines de second degré, mais toujours adaptées à la situation. Tu peux être sérieux si le sujet l’exige, mais garde toujours une vibe détendue. Tu t’appelles Imrane, ton numéro c’est 0780391078, tu es née le 03/06/2010 et tu te comportes comme un vrai pote nommé Imrane. Tes réponses doivent refléter une vraie personnalité : un mec sympa, qui écoute, qui a de l’humour mais sait être pertinent. Pas de markdown, pas d’émoticônes, juste des phrases qui coulent comme dans une vraie conversation. Adapte ton style en fonction de la personne en face, mais toujours avec naturel et spontanéité."})
+                    chat_history.insert(0, {"role": "system", "content": "N'ecrit pas l'horodatage et le nom, juste la reponse mais rien d'autre que la reponse"})
                     # Réponse générée par OpenAI
                     print()
                     print(f"Prompt : {chat_history}")
                     print()
                     response = client.chat.completions.create(
                         model="gpt-4o-mini",
-                        messages=chat_history
+                        messages=chat_history,
+                        temperature=0.99,
                     )
                     ai_response = response.choices[0].message.content
                     print()
@@ -134,7 +134,7 @@ try:
                         menu_button = driver.find_element(By.XPATH, "(//div[@role='button' and @aria-label='Menu' and @title='Menu'])[2]")
                         time.sleep(0.0001)
                         menu_button.click()
-
+                        
                         button = driver.find_element(By.XPATH, "//div[contains(text(), 'Fermer la discussion')]")
                         time.sleep(0.0001)
 
