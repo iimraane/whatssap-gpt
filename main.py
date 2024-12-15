@@ -4,6 +4,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.common.action_chains import ActionChains
 import time
 from openai import OpenAI
 import os
@@ -21,15 +22,11 @@ if headless_choice in ['oui', 'yes', 'y']:
     # Activer le mode headless si l'utilisateur choisit oui
     options.add_argument("--headless")
     options.add_argument("--disable-gpu")
-    options.add_argument("--window-size=1920,1080")  # Définit une taille d'écran
-    options.add_argument("--disable-extensions")
     options.add_argument("--no-sandbox")  # Nécessaire dans certains environnements Linux
     options.add_argument("--disable-dev-shm-usage")  # Évite les problèmes de mémoire partagée
     print("Mode headless activé.")
 else:
     print("Mode headless désactivé. Une fenêtre de navigateur s'ouvrira.")
-
-
 
 # Initialisation du driver Selenium
 driver = webdriver.Chrome(options=options)
@@ -39,6 +36,11 @@ try:
 
     # Accès à WhatsApp Web
     driver.get("https://web.whatsapp.com")
+
+    # Dézoomer à 25% avec les touches Ctrl + -
+    actions = ActionChains(driver)
+    for _ in range(6):  # Répétez 6 fois pour atteindre environ 25%
+        actions.key_down(Keys.CONTROL).send_keys('-').key_up(Keys.CONTROL).perform()
     
     print("Veuillez scanner le QR code pour continuer...")
     time.sleep(20)  # Attente pour la connexion manuelle
@@ -70,25 +72,40 @@ try:
                 EC.presence_of_all_elements_located((By.XPATH, "//div[contains(@class, 'message-in') or contains(@class, 'message-out')]")
             ))
 
-            # Récupération des messages entrants
-            rows = driver.find_elements(By.XPATH, "//div[contains(@class, 'message-in')]")
+            # Récupération de tous les messages (entrants et sortants)
+            rows = driver.find_elements(By.XPATH, "//div[contains(@class, 'message-in') or contains(@class, 'message-out')]")
 
             if rows:
-               # Récupération des 10 derniers messages entrants
-                rows = driver.find_elements(By.XPATH, "//div[contains(@class, 'message-in')]")
-                recent_messages = rows[-12:] if len(rows) > 13 else rows
+                # Limiter aux 25 derniers messages
+                recent_messages = rows[-25:] if len(rows) > 25 else rows
 
                 chat_history = []
+                
+                audio_button = driver.find_element(By.XPATH, "//button[@aria-label='Lire le message vocal']")
+                audio_container = row.find_element(By.XPATH, ".//div[contains(@class, 'ak8')]")
+
+                audio_element = audio_container.find_element(By.TAG_NAME, "audio")
+                audio_url = audio_element.get_attribute("src")
+                print(f"URL de l'audio trouvé : {audio_url}")
+
                 for row in recent_messages:
-                    text_elements = row.find_elements(By.XPATH, ".//span[@class and @dir='ltr']")
-                    message_text = " ".join([el.text for el in text_elements if el.text])
+                    try:
+                        # Récupérer le texte du message
+                        text_elements = row.find_elements(By.XPATH, ".//span[@class and @dir='ltr']")
+                        message_text = " ".join([el.text for el in text_elements if el.text])
 
-                    metadata_element = row.find_element(By.XPATH, ".//div[contains(@class, 'copyable-text')]")
-                    timestamp_author = metadata_element.get_attribute("data-pre-plain-text")
-                    timestamp = timestamp_author.split(']')[0].replace('[', '').strip()
-                    author = timestamp_author.split(']')[-1].split(':')[0].strip()
+                        # Récupérer les métadonnées : timestamp et auteur
+                        metadata_element = row.find_element(By.XPATH, ".//div[contains(@class, 'copyable-text')]")
+                        timestamp_author = metadata_element.get_attribute("data-pre-plain-text")
 
-                    chat_history.append({"role": "user", "content": f" a {timestamp},  {author} a dit  <<{message_text}>> "})
+                        # Extraire l'horodatage et l'auteur
+                        timestamp = timestamp_author.split(']')[0].replace('[', '').strip()
+                        author = timestamp_author.split(']')[-1].split(':')[0].strip()
+
+                        # Ajouter le message à l'historique
+                        chat_history.append({"role": "user", "content": f" a {timestamp}, {author} a dit <<{message_text}>>"})
+                    except Exception as e:
+                        print(f"Erreur lors de la récupération d'un message : {e}")
 
                 # Identifier la conversation actuelle
                 conversation_id = driver.current_url
@@ -108,7 +125,6 @@ try:
                     response = client.chat.completions.create(
                         model="gpt-4o-mini",
                         messages=chat_history,
-                        temperature=0.99,
                     )
                     ai_response = response.choices[0].message.content
                     print()
