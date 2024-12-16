@@ -81,12 +81,10 @@ try:
 
                 chat_history = []
                 
-                audio_button = driver.find_element(By.XPATH, "//button[@aria-label='Lire le message vocal']")
-                audio_container = row.find_element(By.XPATH, ".//div[contains(@class, 'ak8')]")
 
-                audio_element = audio_container.find_element(By.TAG_NAME, "audio")
-                audio_url = audio_element.get_attribute("src")
-                print(f"URL de l'audio trouvé : {audio_url}")
+
+
+
 
                 for row in recent_messages:
                     try:
@@ -104,8 +102,17 @@ try:
 
                         # Ajouter le message à l'historique
                         chat_history.append({"role": "user", "content": f" a {timestamp}, {author} a dit <<{message_text}>>"})
+
+                        
+
+
                     except Exception as e:
                         print(f"Erreur lors de la récupération d'un message : {e}")
+
+
+
+
+
 
                 # Identifier la conversation actuelle
                 conversation_id = driver.current_url
